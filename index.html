@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proxy → Mihomo Converter</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #191c23;
+    --border: #252830;
+    --accent: #00e5ff;
+    --accent2: #7c3aed;
+    --success: #00ff9f;
+    --warn: #ffb800;
+    --err: #ff4545;
+    --text: #e8eaf0;
+    --muted: #5a6070;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-display: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 80px;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 900px;
+  }
+
+  header {
+    margin-bottom: 36px;
+    text-align: left;
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 3px 10px;
+    border-radius: 2px;
+    margin-bottom: 14px;
+    opacity: 0.8;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(28px, 5vw, 44px);
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .subtitle {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 13px;
+    letter-spacing: 0.01em;
+  }
+
+  .supported {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+
+  .tag {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 100px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+
+  .tag.active { color: var(--accent); border-color: rgba(0,229,255,0.3); }
+
+  /* Panels */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .panel-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .panel-title span { color: var(--accent); margin-right: 6px; }
+
+  textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    padding: 16px;
+    resize: vertical;
+    min-height: 180px;
+  }
+
+  textarea::placeholder { color: var(--muted); }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  button {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 10px 22px;
+    transition: all 0.15s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+  }
+
+  .btn-primary:hover { background: #33ecff; transform: translateY(-1px); }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-copy {
+    background: var(--surface2);
+    color: var(--success);
+    border: 1px solid rgba(0,255,159,0.25);
+    margin-left: auto;
+  }
+
+  .btn-copy:hover { background: rgba(0,255,159,0.1); }
+
+  /* Output */
+  .output-wrap {
+    position: relative;
+  }
+
+  pre {
+    background: transparent;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.75;
+    padding: 16px;
+    overflow-x: auto;
+    white-space: pre;
+    min-height: 100px;
+  }
+
+  /* Stats bar */
+  .stats {
+    display: flex;
+    gap: 20px;
+    padding: 8px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .stat {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .stat b { color: var(--accent); }
+
+  /* Errors */
+  .errors {
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .error-item {
+    background: rgba(255,69,69,0.08);
+    border: 1px solid rgba(255,69,69,0.25);
+    border-radius: 4px;
+    padding: 8px 14px;
+    font-size: 12px;
+    color: var(--err);
+  }
+
+  /* Syntax highlight colors */
+  .y-key   { color: #7dd3fc; }
+  .y-val   { color: #a5f3fc; }
+  .y-str   { color: #86efac; }
+  .y-num   { color: #fbbf24; }
+  .y-bool  { color: #f472b6; }
+  .y-dash  { color: var(--muted); }
+  .y-comment { color: #4b5563; font-style: italic; }
+
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: var(--success);
+    color: #000;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 10px 20px;
+    border-radius: 4px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.2s;
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="badge">◈ Proxy Converter</div>
+    <h1>URI → <span>Mihomo</span> YAML</h1>
+    <p class="subtitle">Paste proxy links below. One per line. Converts to Mihomo proxies: block.</p>
+    <div class="supported">
+      <span class="tag active">VLESS</span>
+      <span class="tag active">AnyTLS</span>
+      <span class="tag active">TUIC</span>
+      <span class="tag active">Hysteria2 / hy2</span>
+      <span class="tag active">VMess</span>
+      <span class="tag active">Trojan</span>
+      <span class="tag active">SS</span>
+    </div>
+  </header>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title"><span>▶</span> Input — Proxy URIs</div>
+    </div>
+    <textarea id="input" placeholder="vless://uuid@host:port?...#name&#10;anytls://pass@host:port?...#name&#10;tuic://uuid:pass@host:port?...#name&#10;hy2://pass@host:port?...#name"></textarea>
+  </div>
+
+  <div class="controls">
+    <button class="btn-primary" onclick="convert()">⚡ Convert</button>
+    <button class="btn-secondary" onclick="clearAll()">✕ Clear</button>
+    <button class="btn-copy" onclick="copyOutput()">⎘ Copy YAML</button>
+  </div>
+
+  <div class="errors" id="errors"></div>
+
+  <div class="panel output-wrap">
+    <div class="panel-header">
+      <div class="panel-title"><span>◈</span> Output — Mihomo YAML</div>
+      <div id="stats-bar" class="stats" style="border:none;background:transparent;padding:0">
+        <span class="stat">Ready</span>
+      </div>
+    </div>
+    <pre id="output"><span style="color:var(--muted)">// Converted proxies will appear here...</span></pre>
+    <div class="stats" id="stats" style="display:none">
+      <span class="stat">Converted: <b id="s-ok">0</b></span>
+      <span class="stat">Errors: <b id="s-err" style="color:var(--err)">0</b></span>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast">Copied to clipboard!</div>
+
+<script>
+
+
+
+function clearAll() {
+  document.getElementById('input').value = '';
+  document.getElementById('output').innerHTML = '<span style="color:var(--muted)">// Converted proxies will appear here...</span>';
+  document.getElementById('errors').innerHTML = '';
+  document.getElementById('stats').style.display = 'none';
+}
+
+// ── Parsers ──────────────────────────────────────────────────────────────────
+
+function parseVless(uri) {
+  // vless://uuid@host:port?params#name
+  const noScheme = uri.slice('vless://'.length);
+  const hashIdx = noScheme.lastIndexOf('#');
+  const name = hashIdx >= 0 ? decodeURIComponent(noScheme.slice(hashIdx + 1)) : 'vless';
+  const main = hashIdx >= 0 ? noScheme.slice(0, hashIdx) : noScheme;
+
+  const qIdx = main.indexOf('?');
+  const hostPart = qIdx >= 0 ? main.slice(0, qIdx) : main;
+  const paramStr = qIdx >= 0 ? main.slice(qIdx + 1) : '';
+
+  const atIdx = hostPart.lastIndexOf('@');
+  const uuid = decodeURIComponent(hostPart.slice(0, atIdx));
+  const hostPort = hostPart.slice(atIdx + 1);
+  const lastColon = hostPort.lastIndexOf(':');
+  const server = hostPort.slice(0, lastColon);
+  const port = parseInt(hostPort.slice(lastColon + 1));
+
+  const p = Object.fromEntries(new URLSearchParams(paramStr));
+  const security = p.security || '';
+  const network = p.type || 'tcp';
+
+  const proxy = {
+    name,
+    type: 'vless',
+    server,
+    port,
+    uuid,
+    network,
+    tls: (security === 'tls' || security === 'reality') ? true : false,
+  };
+
+  if (p.flow) proxy.flow = p.flow;
+  if (p.sni) proxy.servername = p.sni;
+  if (p.fp) proxy['client-fingerprint'] = p.fp;
+  if (p.packetEncoding) proxy['packet-encoding'] = p.packetEncoding;
+
+  if (security === 'reality') {
+    proxy['reality-opts'] = {};
+    if (p.pbk) proxy['reality-opts']['public-key'] = p.pbk;
+    if (p.sid) proxy['reality-opts']['short-id'] = p.sid;
+  }
+
+  if (network === 'ws') {
+    proxy['ws-opts'] = { path: p.path || '/' };
+    if (p.host || p.sni) {
+      proxy['ws-opts'].headers = { Host: p.host || p.sni };
+    }
+  }
+
+  if (network === 'grpc') {
+    proxy['grpc-opts'] = { 'grpc-service-name': p['serviceName'] || '' };
+  }
+
+  if (p['skip-cert-verify'] === '1' || p['skipCertVerify'] === 'true') {
+    proxy['skip-cert-verify'] = true;
+  }
+
+  return proxy;
+}
+
+function parseAnytls(uri) {
+  const noScheme = uri.slice('anytls://'.length);
+  const hashIdx = noScheme.lastIndexOf('#');
+  const name = hashIdx >= 0 ? decodeURIComponent(noScheme.slice(hashIdx + 1)) : 'anytls';
+  const main = hashIdx >= 0 ? noScheme.slice(0, hashIdx) : noScheme;
+
+  const qIdx = main.indexOf('?');
+  const hostPart = qIdx >= 0 ? main.slice(0, qIdx) : main;
+  const paramStr = qIdx >= 0 ? main.slice(qIdx + 1) : '';
+
+  const atIdx = hostPart.lastIndexOf('@');
+  const password = decodeURIComponent(hostPart.slice(0, atIdx));
+  const hostPort = hostPart.slice(atIdx + 1);
+  const lastColon = hostPort.lastIndexOf(':');
+  const server = hostPort.slice(0, lastColon);
+  const port = parseInt(hostPort.slice(lastColon + 1));
+
+  const p = Object.fromEntries(new URLSearchParams(paramStr));
+
+  const proxy = {
+    name,
+    type: 'anytls',
+    server,
+    port,
+    password,
+    tls: true,
+  };
+
+  if (p.sni) proxy.sni = p.sni;
+  if (p.fp) proxy['client-fingerprint'] = p.fp;
+  if (p['skip-cert-verify'] === '1') proxy['skip-cert-verify'] = true;
+
+  return proxy;
+}
+
+function parseTuic(uri) {
+  const noScheme = uri.slice('tuic://'.length);
+  const hashIdx = noScheme.lastIndexOf('#');
+  const name = hashIdx >= 0 ? decodeURIComponent(noScheme.slice(hashIdx + 1)) : 'tuic';
+  const main = hashIdx >= 0 ? noScheme.slice(0, hashIdx) : noScheme;
+
+  const qIdx = main.indexOf('?');
+  const hostPart = qIdx >= 0 ? main.slice(0, qIdx) : main;
+  const paramStr = qIdx >= 0 ? main.slice(qIdx + 1) : '';
+
+  const atIdx = hostPart.lastIndexOf('@');
+  const userInfo = decodeURIComponent(hostPart.slice(0, atIdx));
+  const hostPort = hostPart.slice(atIdx + 1);
+  const lastColon = hostPort.lastIndexOf(':');
+  const server = hostPort.slice(0, lastColon);
+  const port = parseInt(hostPort.slice(lastColon + 1));
+
+  // userInfo can be uuid:password or just uuid
+  const colonIdx = userInfo.indexOf(':');
+  const uuid = colonIdx >= 0 ? userInfo.slice(0, colonIdx) : userInfo;
+  const password = colonIdx >= 0 ? userInfo.slice(colonIdx + 1) : '';
+
+  const p = Object.fromEntries(new URLSearchParams(paramStr));
+  const alpnStr = p.alpn || 'h3';
+  const alpnArr = alpnStr.split(',').map(s => s.trim()).filter(Boolean);
+
+  const proxy = {
+    name,
+    type: 'tuic',
+    server,
+    port,
+    uuid,
+    password,
+    alpn: alpnArr,
+    'heartbeat-interval': 10000,
+    'reduce-rtt': true,
+    'request-timeout': 8000,
+  };
+
+  if (p.congestion_control) proxy['congestion-controller'] = p.congestion_control;
+  if (p.udp_relay_mode) proxy['udp-relay-mode'] = p.udp_relay_mode;
+  if (p.sni) proxy.sni = p.sni;
+  if (p['disable-sni'] === '1') proxy['disable-sni'] = true;
+
+  return proxy;
+}
+
+function parseHysteria2(uri) {
+  const scheme = uri.startsWith('hy2://') ? 'hy2://' : 'hysteria2://';
+  const noScheme = uri.slice(scheme.length);
+  const hashIdx = noScheme.lastIndexOf('#');
+  const name = hashIdx >= 0 ? decodeURIComponent(noScheme.slice(hashIdx + 1)) : 'hysteria2';
+  const main = hashIdx >= 0 ? noScheme.slice(0, hashIdx) : noScheme;
+
+  const qIdx = main.indexOf('?');
+  const hostPart = qIdx >= 0 ? main.slice(0, qIdx) : main;
+  const paramStr = qIdx >= 0 ? main.slice(qIdx + 1) : '';
+
+  const atIdx = hostPart.lastIndexOf('@');
+  const password = decodeURIComponent(hostPart.slice(0, atIdx));
+  const hostPort = hostPart.slice(atIdx + 1);
+  const lastColon = hostPort.lastIndexOf(':');
+  const server = hostPort.slice(0, lastColon);
+  const port = parseInt(hostPort.slice(lastColon + 1));
+
+  const p = Object.fromEntries(new URLSearchParams(paramStr));
+
+  const proxy = {
+    name,
+    type: 'hysteria2',
+    server,
+    port,
+    password,
+    udp: true,
+  };
+
+  if (p.sni) proxy.sni = p.sni;
+  if (p.up) proxy.up = p.up;
+  if (p.down) proxy.down = p.down;
+  if (p['skip-cert-verify'] === '1') proxy['skip-cert-verify'] = true;
+
+  return proxy;
+}
+
+function parseVmess(uri) {
+  const b64 = uri.slice('vmess://'.length);
+  const json = JSON.parse(atob(b64));
+
+  const proxy = {
+    name: json.ps || 'vmess',
+    type: 'vmess',
+    server: json.add,
+    port: parseInt(json.port),
+    uuid: json.id,
+    alterId: parseInt(json.aid) || 0,
+    cipher: json.scy || 'auto',
+    network: json.net || 'tcp',
+    tls: json.tls === 'tls',
+  };
+
+  if (json.sni) proxy.servername = json.sni;
+  if (json.net === 'ws') {
+    proxy['ws-opts'] = { path: json.path || '/' };
+    if (json.host) proxy['ws-opts'].headers = { Host: json.host };
+  }
+
+  return proxy;
+}
+
+function parseTrojan(uri) {
+  const noScheme = uri.slice('trojan://'.length);
+  const hashIdx = noScheme.lastIndexOf('#');
+  const name = hashIdx >= 0 ? decodeURIComponent(noScheme.slice(hashIdx + 1)) : 'trojan';
+  const main = hashIdx >= 0 ? noScheme.slice(0, hashIdx) : noScheme;
+
+  const qIdx = main.indexOf('?');
+  const hostPart = qIdx >= 0 ? main.slice(0, qIdx) : main;
+  const paramStr = qIdx >= 0 ? main.slice(qIdx + 1) : '';
+
+  const atIdx = hostPart.lastIndexOf('@');
+  const password = decodeURIComponent(hostPart.slice(0, atIdx));
+  const hostPort = hostPart.slice(atIdx + 1);
+  const lastColon = hostPort.lastIndexOf(':');
+  const server = hostPort.slice(0, lastColon);
+  const port = parseInt(hostPort.slice(lastColon + 1));
+
+  const p = Object.fromEntries(new URLSearchParams(paramStr));
+  const network = p.type || 'tcp';
+
+  const proxy = { name, type: 'trojan', server, port, password, network, tls: true };
+  if (p.sni) proxy.sni = p.sni;
+  if (p.fp) proxy['client-fingerprint'] = p.fp;
+  if (network === 'ws') {
+    proxy['ws-opts'] = { path: p.path || '/' };
+    if (p.host) proxy['ws-opts'].headers = { Host: p.host };
+  }
+  return proxy;
+}
+
+function parseSS(uri) {
+  // ss://BASE64@host:port#name  or  ss://method:pass@host:port#name
+  const noScheme = uri.slice('ss://'.length);
+  const hashIdx = noScheme.lastIndexOf('#');
+  const name = hashIdx >= 0 ? decodeURIComponent(noScheme.slice(hashIdx + 1)) : 'ss';
+  const main = hashIdx >= 0 ? noScheme.slice(0, hashIdx) : noScheme;
+
+  let userInfo, hostPort;
+  const atIdx = main.lastIndexOf('@');
+  if (atIdx >= 0) {
+    hostPort = main.slice(atIdx + 1);
+    let rawUser = main.slice(0, atIdx);
+    // try base64 decode
+    try { rawUser = atob(rawUser); } catch(e) { rawUser = decodeURIComponent(rawUser); }
+    userInfo = rawUser;
+  } else {
+    // older format: everything before ? is base64
+    const qIdx = main.indexOf('?');
+    const b64part = qIdx >= 0 ? main.slice(0, qIdx) : main;
+    const decoded = atob(b64part);
+    const atIdx2 = decoded.lastIndexOf('@');
+    userInfo = decoded.slice(0, atIdx2);
+    hostPort = decoded.slice(atIdx2 + 1);
+  }
+
+  const colonIdx = userInfo.indexOf(':');
+  const cipher = userInfo.slice(0, colonIdx);
+  const password = userInfo.slice(colonIdx + 1);
+
+  const lastColon = hostPort.lastIndexOf(':');
+  const server = hostPort.slice(0, lastColon);
+  const port = parseInt(hostPort.slice(lastColon + 1));
+
+  return { name, type: 'ss', server, port, cipher, password };
+}
+
+// ── YAML serialiser ──────────────────────────────────────────────────────────
+
+function escapeYamlStr(val) {
+  if (typeof val !== 'string') return String(val);
+  // Needs quoting if contains special chars
+  if (/[:#\[\]{},|>&*!'"?]/.test(val) || val.includes('\n') || val.trim() !== val || val === '' || /^(true|false|yes|no|null|~|\d.*)$/i.test(val)) {
+    return '"' + val.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+  }
+  return val;
+}
+
+function proxyToYaml(proxy, indent = '  ') {
+  const lines = [];
+  const keys = Object.keys(proxy);
+
+  // Preferred key order
+  const order = ['name','type','server','port','uuid','password','cipher','alterId','network','tls','servername','sni','flow',
+    'client-fingerprint','packet-encoding','skip-cert-verify','udp','alpn','up','down',
+    'congestion-controller','udp-relay-mode','heartbeat-interval','reduce-rtt','request-timeout',
+    'disable-sni','reality-opts','ws-opts','grpc-opts'];
+
+  const sorted = [...order.filter(k => keys.includes(k)), ...keys.filter(k => !order.includes(k))];
+
+  for (const k of sorted) {
+    const v = proxy[k];
+    if (v === undefined || v === null) continue;
+
+    if (typeof v === 'object' && !Array.isArray(v)) {
+      lines.push(`${indent}${k}:`);
+      for (const [sk, sv] of Object.entries(v)) {
+        if (typeof sv === 'object' && sv !== null && !Array.isArray(sv)) {
+          // nested object (e.g. ws-opts.headers)
+          lines.push(`${indent}  ${sk}:`);
+          for (const [ssk, ssv] of Object.entries(sv)) {
+            lines.push(`${indent}    ${ssk}: ${escapeYamlStr(ssv)}`);
+          }
+        } else {
+          lines.push(`${indent}  ${sk}: ${escapeYamlStr(sv)}`);
+        }
+      }
+    } else if (Array.isArray(v)) {
+      lines.push(`${indent}${k}: [${v.map(escapeYamlStr).join(', ')}]`);
+    } else if (typeof v === 'boolean') {
+      lines.push(`${indent}${k}: ${v}`);
+    } else if (typeof v === 'number') {
+      lines.push(`${indent}${k}: ${v}`);
+    } else {
+      lines.push(`${indent}${k}: ${escapeYamlStr(v)}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+// ── Convert ──────────────────────────────────────────────────────────────────
+
+let lastYaml = '';
+
+function convert() {
+  const raw = document.getElementById('input').value.trim();
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  const errBox = document.getElementById('errors');
+  errBox.innerHTML = '';
+
+  const results = [];
+  const errs = [];
+
+  for (const line of lines) {
+    try {
+      let proxy;
+      if (line.startsWith('vless://'))          proxy = parseVless(line);
+      else if (line.startsWith('anytls://'))     proxy = parseAnytls(line);
+      else if (line.startsWith('tuic://'))       proxy = parseTuic(line);
+      else if (line.startsWith('hy2://') || line.startsWith('hysteria2://')) proxy = parseHysteria2(line);
+      else if (line.startsWith('vmess://'))      proxy = parseVmess(line);
+      else if (line.startsWith('trojan://'))     proxy = parseTrojan(line);
+      else if (line.startsWith('ss://'))         proxy = parseSS(line);
+      else { errs.push(`Unknown scheme: ${line.split('://')[0]}://`); continue; }
+
+      results.push(proxy);
+    } catch(e) {
+      errs.push(`Failed to parse: ${line.slice(0, 60)}… → ${e.message}`);
+    }
+  }
+
+  // Build YAML
+  const yamlLines = [];
+  if (results.length > 0) {
+    yamlLines.push('proxies:');
+    for (const proxy of results) {
+      yamlLines.push('');
+      yamlLines.push(`  - name: ${escapeYamlStr(proxy.name)}`);
+      const rest = {...proxy};
+      delete rest.name;
+      // re-run order
+      const tempForOrder = {name: proxy.name, ...rest};
+      const yamlChunk = proxyToYaml(tempForOrder);
+      // strip the name line we already added
+      const chunkLines = yamlChunk.split('\n').filter(l => !l.trimStart().startsWith('name:'));
+      yamlLines.push(...chunkLines);
+    }
+  }
+
+  const yaml = yamlLines.join('\n');
+  lastYaml = yaml;
+
+  // Render with highlight
+  document.getElementById('output').innerHTML = highlightYaml(yaml) || '<span style="color:var(--muted)">// Nothing to show</span>';
+
+  // Show errors
+  for (const e of errs) {
+    const div = document.createElement('div');
+    div.className = 'error-item';
+    div.textContent = '⚠ ' + e;
+    errBox.appendChild(div);
+  }
+
+  // Stats
+  document.getElementById('stats').style.display = 'flex';
+  document.getElementById('s-ok').textContent = results.length;
+  document.getElementById('s-err').textContent = errs.length;
+}
+
+// ── Syntax highlight ─────────────────────────────────────────────────────────
+
+function highlightYaml(yaml) {
+  return yaml
+    .split('\n')
+    .map(line => {
+      // comment
+      if (/^\s*#/.test(line)) return `<span class="y-comment">${esc(line)}</span>`;
+      // list dash
+      const dashMatch = line.match(/^(\s*-\s*)(name:\s*)(.*)$/);
+      if (dashMatch) {
+        return `<span class="y-dash">${esc(dashMatch[1])}</span><span class="y-key">${esc(dashMatch[2])}</span><span class="y-str">${esc(dashMatch[3])}</span>`;
+      }
+      // key: value
+      const kvMatch = line.match(/^(\s*)([^:]+)(:)\s*(.*)$/);
+      if (kvMatch) {
+        const [, indent, key, colon, val] = kvMatch;
+        let valSpan;
+        if (val === '') {
+          valSpan = '';
+        } else if (val === 'true' || val === 'false') {
+          valSpan = `<span class="y-bool">${esc(val)}</span>`;
+        } else if (/^\d+$/.test(val)) {
+          valSpan = `<span class="y-num">${esc(val)}</span>`;
+        } else if (/^\[.*\]$/.test(val)) {
+          valSpan = `<span class="y-val">${esc(val)}</span>`;
+        } else {
+          valSpan = `<span class="y-str">${esc(val)}</span>`;
+        }
+        return `${esc(indent)}<span class="y-key">${esc(key)}${esc(colon)}</span> ${valSpan}`;
+      }
+      return esc(line);
+    })
+    .join('\n');
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function showToast() {
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function copyOutput() {
+  if (!lastYaml) return;
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(lastYaml).then(showToast).catch(() => fallbackCopy());
+  } else {
+    fallbackCopy();
+  }
+}
+
+function fallbackCopy() {
+  const ta = document.createElement('textarea');
+  ta.value = lastYaml;
+  ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+    showToast();
+  } catch(e) {
+    alert('Copy failed — please select the output and copy manually.');
+  }
+  document.body.removeChild(ta);
+}
+
+// Auto-convert on paste
+document.getElementById('input').addEventListener('input', () => {
+  if (document.getElementById('input').value.trim()) convert();
+});
+</script>
+</body>
+</html>
