@@ -713,7 +713,7 @@ function convert() {
     yamlLines.push('proxies:');
     for (const proxy of results) {
       yamlLines.push('');
-      yamlLines.push(`  - name: ${escapeYamlStr(proxy.name)}`);
+      yamlLines.push(`- name: ${escapeYamlStr(proxy.name)}`);
       const rest = {...proxy};
       delete rest.name;
       // re-run order
